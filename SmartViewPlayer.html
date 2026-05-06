@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SmartView">
+<meta name="theme-color" content="#0f7d80">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Smart View Player</title>
+<style>
+  :root { --teal:#0f7d80; --bg:#0b0b0b; --card:#161616; --txt:#eee; --sub:#999; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; padding:0; background:var(--bg); color:var(--txt);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    min-height:100vh; }
+  .wrap { max-width:520px; margin:0 auto; padding:24px 18px; }
+  .logo { text-align:center; padding:20px 0 8px; }
+  .logo .t { font-weight:800; font-style:italic; font-size:28px; color:var(--teal); letter-spacing:1px; line-height:1.05; }
+  .logo .s { font-size:12px; color:var(--sub); margin-top:6px; }
+  .card { background:var(--card); border-radius:14px; padding:18px; margin-top:14px; }
+  label { display:block; font-size:13px; color:var(--sub); margin:12px 0 6px; }
+  input[type=file], input[type=password] {
+    width:100%; padding:14px; border-radius:10px; border:1px solid #333; background:#0e0e0e; color:var(--txt); font-size:16px;
+  }
+  button {
+    width:100%; padding:16px; margin-top:16px; border:0; border-radius:12px;
+    background:var(--teal); color:#fff; font-size:17px; font-weight:700; cursor:pointer;
+  }
+  button:disabled { opacity:.5; }
+  .msg { padding:10px 12px; border-radius:8px; margin-top:12px; font-size:14px; }
+  .err { background:#3a1a1a; color:#ffb4b4; }
+  .ok  { background:#15331f; color:#a5e6b6; }
+  .info{ background:#1a2a3a; color:#9fcfff; }
+  video { width:100%; border-radius:10px; background:#000; margin-top:16px; }
+  .meta { font-size:12px; color:var(--sub); margin-top:8px; text-align:center; }
+  .progress { height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:10px; display:none; }
+  .progress > div { height:100%; background:var(--teal); width:0%; transition:width .15s; }
+  details { margin-top:14px; font-size:12px; color:var(--sub); }
+  details summary { cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="t">NOROO<br>SMART VIEW</div>
+    <div class="s">Smart View Player · 보안 영상 재생기</div>
+  </div>
+
+  <div class="card" id="picker">
+    <label>1. 암호화된 영상 파일 (.venc)</label>
+    <input type="file" id="file" accept=".venc">
+    <label>2. 비밀번호</label>
+    <input type="password" id="pw" placeholder="비밀번호 입력" autocomplete="off">
+    <button id="play">▶ 재생</button>
+    <div id="msg"></div>
+    <div class="progress" id="prog"><div></div></div>
+  </div>
+
+  <div id="playerBox" style="display:none">
+    <video id="vid" controls playsinline autoplay></video>
+    <div class="meta" id="meta"></div>
+    <button id="back" style="background:#333; margin-top:10px;">← 다시 선택</button>
+  </div>
+
+  <details>
+    <summary>이 파일은 어떻게 동작하나요?</summary>
+    <p style="line-height:1.6;">
+      AES-256-GCM으로 암호화된 .venc 파일을 비밀번호로 복호화하여 브라우저 메모리에서 직접 재생합니다.
+      파일은 서버로 전송되지 않으며, 새로고침하면 메모리에서 사라집니다.
+      iOS Safari, Android Chrome, PC 모든 브라우저에서 동작합니다.
+    </p>
+  </details>
+</div>
+
+<script>
+const MAGIC_V2 = [0x56,0x45,0x4e,0x43,0x02];   // "VENC\x02"
+const ITERS = 200000;
+
+const $ = id => document.getElementById(id);
+function showMsg(text, cls){ const m=$("msg"); m.className="msg "+cls; m.textContent=text; }
+function setProg(pct){ const p=$("prog"); p.style.display = pct>=0 ? "block":"none"; p.firstElementChild.style.width=(pct||0)+"%"; }
+
+async function decryptAndPlay(){
+  const f = $("file").files[0];
+  const pw = $("pw").value;
+  if(!f) return showMsg("영상 파일을 선택하세요.", "err");
+  if(!pw) return showMsg("비밀번호를 입력하세요.", "err");
+  if(!window.crypto || !window.crypto.subtle) return showMsg("이 브라우저는 보안 재생을 지원하지 않습니다. 최신 Chrome/Safari를 사용하세요.", "err");
+
+  $("play").disabled = true;
+  showMsg("파일 읽는 중...", "info"); setProg(10);
+
+  try {
+    const buf = new Uint8Array(await f.arrayBuffer());
+    setProg(25);
+
+    // 헤더 파싱
+    for (let i=0;i<5;i++) if (buf[i] !== MAGIC_V2[i])
+      throw new Error("지원하지 않는 파일입니다. (구버전 .venc는 PC 플레이어를 사용하세요)");
+
+    const salt    = buf.slice(5, 21);
+    const nonce   = buf.slice(21, 33);
+    const expireS = new TextDecoder().decode(buf.slice(33, 43));
+    const extPad  = buf.slice(43, 51);
+    const ext     = new TextDecoder().decode(extPad).replace(/\0+$/,"");
+    const ctLen   = Number(new DataView(buf.buffer, buf.byteOffset+51, 8).getBigUint64(0, true));
+    const ct      = buf.slice(59, 59+ctLen);
+
+    // 만료 검사
+    const today = new Date(); today.setHours(0,0,0,0);
+    const exp = new Date(expireS+"T00:00:00");
+    if (today > exp) throw new Error("재생 기간이 만료되었습니다 (만료일: "+expireS+")");
+
+    showMsg("키 생성 중... (5~15초 소요)", "info"); setProg(40);
+    await new Promise(r=>setTimeout(r,30));
+
+    const enc = new TextEncoder();
+    const baseKey = await crypto.subtle.importKey("raw", enc.encode(pw), {name:"PBKDF2"}, false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt, iterations:ITERS, hash:"SHA-256"},
+      baseKey,
+      {name:"AES-GCM", length:256},
+      false, ["decrypt"]
+    );
+
+    showMsg("복호화 중...", "info"); setProg(70);
+    const aad = new Uint8Array(enc.encode(expireS).length + extPad.length);
+    aad.set(enc.encode(expireS), 0);
+    aad.set(extPad, enc.encode(expireS).length);
+
+    let plaintext;
+    try {
+      plaintext = await crypto.subtle.decrypt(
+        {name:"AES-GCM", iv:nonce, additionalData:aad},
+        key, ct
+      );
+    } catch(e) {
+      throw new Error("비밀번호가 올바르지 않거나 파일이 손상되었습니다.");
+    }
+
+    setProg(95);
+    const mime = ext===".mp4"?"video/mp4" : ext===".mov"?"video/quicktime"
+               : ext===".webm"?"video/webm" : "video/mp4";
+    const blob = new Blob([plaintext], {type:mime});
+    const url = URL.createObjectURL(blob);
+
+    $("picker").style.display = "none";
+    $("playerBox").style.display = "block";
+    $("vid").src = url;
+    const days = Math.ceil((exp-today)/86400000);
+    $("meta").textContent = "남은 재생 가능 기간: "+days+"일 (만료일 "+expireS+")";
+    setProg(100); setTimeout(()=>setProg(-1), 400);
+    showMsg("", "");
+  } catch(e) {
+    showMsg(e.message || String(e), "err");
+    setProg(-1);
+  } finally {
+    $("play").disabled = false;
+  }
+}
+
+$("play").addEventListener("click", decryptAndPlay);
+$("back").addEventListener("click", () => {
+  const v=$("vid"); v.pause(); URL.revokeObjectURL(v.src); v.src="";
+  $("playerBox").style.display="none"; $("picker").style.display="block";
+  $("pw").value="";
+});
+$("pw").addEventListener("keydown", e => { if(e.key==="Enter") decryptAndPlay(); });
+
+// PWA: 서비스워커 등록 (오프라인 지원)
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
