@@ -4,83 +4,181 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="SmartView">
-<meta name="theme-color" content="#0f7d80">
+<meta name="theme-color" content="#ffffff">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
-<title>Smart View Player</title>
+<title>NOROO Smart View</title>
 <style>
-  :root { --teal:#0f7d80; --bg:#0b0b0b; --card:#161616; --txt:#eee; --sub:#999; }
+  :root { --teal:#0f7d80; --bg:#ffffff; --card:#f4f6f7; --txt:#1a1a1a; --sub:#666; --line:#dcdfe2; }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { margin:0; padding:0; background:var(--bg); color:var(--txt);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
     min-height:100vh; }
   .wrap { max-width:520px; margin:0 auto; padding:24px 18px; }
   .logo { text-align:center; padding:20px 0 8px; }
-  .logo .t { font-weight:800; font-style:italic; font-size:28px; color:var(--teal); letter-spacing:1px; line-height:1.05; }
-  .logo .s { font-size:12px; color:var(--sub); margin-top:6px; }
-  .card { background:var(--card); border-radius:14px; padding:18px; margin-top:14px; }
-  label { display:block; font-size:13px; color:var(--sub); margin:12px 0 6px; }
+  .logo img { width:160px; height:auto; }
+  .logo .s { font-size:12px; color:var(--sub); margin-top:8px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-top:14px; }
+  h2 { font-size:18px; margin:0 0 12px; }
+  ol { padding-left:22px; line-height:1.8; }
+  ol li b { color:var(--teal); }
+  label { display:block; font-size:13px; color:var(--sub); margin:12px 0 6px; font-weight:600; }
   input[type=file], input[type=password] {
-    width:100%; padding:14px; border-radius:10px; border:1px solid #333; background:#0e0e0e; color:var(--txt); font-size:16px;
+    width:100%; padding:14px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); font-size:16px;
   }
+  input[type=password]:focus, input[type=file]:focus { outline:2px solid var(--teal); border-color:var(--teal); }
   button {
     width:100%; padding:16px; margin-top:16px; border:0; border-radius:12px;
     background:var(--teal); color:#fff; font-size:17px; font-weight:700; cursor:pointer;
   }
   button:disabled { opacity:.5; }
+  button.ghost { background:transparent; color:var(--teal); border:1px solid var(--teal); }
   .msg { padding:10px 12px; border-radius:8px; margin-top:12px; font-size:14px; }
-  .err { background:#3a1a1a; color:#ffb4b4; }
-  .ok  { background:#15331f; color:#a5e6b6; }
-  .info{ background:#1a2a3a; color:#9fcfff; }
+  .err { background:#fdecec; color:#b00020; }
+  .ok  { background:#e7f7ec; color:#1d7a3a; }
+  .info{ background:#e6f3f4; color:#0f5b5e; }
   video { width:100%; border-radius:10px; background:#000; margin-top:16px; }
   .meta { font-size:12px; color:var(--sub); margin-top:8px; text-align:center; }
-  .progress { height:6px; background:#222; border-radius:3px; overflow:hidden; margin-top:10px; display:none; }
+  .progress { height:6px; background:#e5e7e9; border-radius:3px; overflow:hidden; margin-top:10px; display:none; }
   .progress > div { height:100%; background:var(--teal); width:0%; transition:width .15s; }
   details { margin-top:14px; font-size:12px; color:var(--sub); }
   details summary { cursor:pointer; }
+  .badge { display:inline-block; background:var(--teal); color:#fff; padding:3px 10px; border-radius:999px; font-size:12px; margin-bottom:10px; }
+  .small { font-size:13px; color:var(--sub); line-height:1.6; }
+  .icon-row { display:flex; gap:8px; align-items:center; margin:8px 0; }
+  .icon-row svg { flex:0 0 auto; }
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <div class="logo">
-    <div class="t">NOROO<br>SMART VIEW</div>
-    <div class="s">Smart View Player · 보안 영상 재생기</div>
+    <img src="logo.png" alt="NOROO SMART VIEW">
+    <div class="s">Smart View Player</div>
   </div>
 
-  <div class="card" id="picker">
-    <label>1. 암호화된 영상 파일 (.venc)</label>
-    <input type="file" id="file" accept=".venc">
-    <label>2. 비밀번호</label>
-    <input type="password" id="pw" placeholder="비밀번호 입력" autocomplete="off">
-    <button id="play">▶ 재생</button>
-    <div id="msg"></div>
-    <div class="progress" id="prog"><div></div></div>
+  <!-- 1) 설치 안내 화면 (브라우저에서 처음 열렸을 때) -->
+  <div id="installScreen" style="display:none">
+    <div class="card">
+      <span class="badge">설치 안내</span>
+      <h2>먼저 홈 화면에 추가해주세요</h2>
+      <p class="small">앱 아이콘으로 설치하면 빠르게 영상을 재생하고 오프라인에서도 사용할 수 있습니다.</p>
+    </div>
+
+    <div class="card" id="iosGuide" style="display:none">
+      <h2>📱 iPhone (Safari)</h2>
+      <ol>
+        <li>화면 하단 <b>공유 버튼</b> ⬆️ 탭</li>
+        <li><b>"홈 화면에 추가"</b> 선택</li>
+        <li>오른쪽 위 <b>[추가]</b> 탭</li>
+        <li>홈 화면의 <b>NOROO 아이콘</b> 탭하여 실행</li>
+      </ol>
+    </div>
+
+    <div class="card" id="androidGuide" style="display:none">
+      <h2>🤖 Android (Chrome)</h2>
+      <ol>
+        <li>오른쪽 위 <b>⋮ 메뉴</b> 탭</li>
+        <li><b>"앱 설치"</b> 또는 <b>"홈 화면에 추가"</b> 선택</li>
+        <li>홈 화면의 <b>NOROO 아이콘</b> 탭하여 실행</li>
+      </ol>
+      <button id="installBtn" style="display:none">📥 지금 앱 설치하기</button>
+    </div>
+
+    <div class="card" id="pcGuide" style="display:none">
+      <h2>💻 PC</h2>
+      <p class="small">PC에서는 설치 없이 바로 사용 가능합니다.</p>
+      <button class="ghost" id="continuePc">설치 없이 계속 사용</button>
+    </div>
+  </div>
+
+  <!-- 2) 플레이어 화면 (PWA로 실행되었을 때) -->
+  <div id="picker" style="display:none">
+    <div class="card">
+      <label>1. 암호화된 영상 파일 (.venc)</label>
+      <input type="file" id="file" accept=".venc">
+      <label>2. 비밀번호</label>
+      <input type="password" id="pw" placeholder="비밀번호 입력" autocomplete="off">
+      <button id="play">▶ 재생</button>
+      <div id="msg"></div>
+      <div class="progress" id="prog"><div></div></div>
+    </div>
   </div>
 
   <div id="playerBox" style="display:none">
     <video id="vid" controls playsinline autoplay></video>
     <div class="meta" id="meta"></div>
-    <button id="back" style="background:#333; margin-top:10px;">← 다시 선택</button>
+    <button class="ghost" id="back" style="margin-top:10px;">← 다시 선택</button>
   </div>
 
   <details>
-    <summary>이 파일은 어떻게 동작하나요?</summary>
-    <p style="line-height:1.6;">
-      AES-256-GCM으로 암호화된 .venc 파일을 비밀번호로 복호화하여 브라우저 메모리에서 직접 재생합니다.
-      파일은 서버로 전송되지 않으며, 새로고침하면 메모리에서 사라집니다.
-      iOS Safari, Android Chrome, PC 모든 브라우저에서 동작합니다.
+    <summary>이 페이지는 무엇인가요?</summary>
+    <p class="small">
+      AES-256-GCM으로 암호화된 .venc 영상 파일을 비밀번호로 복호화해 재생합니다.
+      파일은 서버로 전송되지 않으며 기기 내부에서만 처리됩니다.
     </p>
   </details>
+
 </div>
 
 <script>
-const MAGIC_V2 = [0x56,0x45,0x4e,0x43,0x02];   // "VENC\x02"
+const MAGIC_V2 = [0x56,0x45,0x4e,0x43,0x02];
 const ITERS = 200000;
-
 const $ = id => document.getElementById(id);
+
+// ---- 설치 / 실행 모드 감지 ----
+function isStandalone(){
+  return window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true
+      || document.referrer.startsWith('android-app://');
+}
+function detectOS(){
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+  if (/Android/i.test(ua)) return 'android';
+  return 'pc';
+}
+
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = $('installBtn');
+  if (btn) { btn.style.display = 'block'; }
+});
+
+function showInstallScreen(){
+  $('installScreen').style.display = 'block';
+  const os = detectOS();
+  if (os === 'ios') $('iosGuide').style.display = 'block';
+  else if (os === 'android') $('androidGuide').style.display = 'block';
+  else $('pcGuide').style.display = 'block';
+}
+function showPlayer(){
+  $('installScreen').style.display = 'none';
+  $('picker').style.display = 'block';
+}
+
+// 표준 PWA 모드면 바로 플레이어, 아니면 설치 안내
+if (isStandalone()) showPlayer();
+else showInstallScreen();
+
+const ipBtn = $('installBtn');
+if (ipBtn) ipBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    ipBtn.style.display = 'none';
+  }
+});
+const pcBtn = $('continuePc');
+if (pcBtn) pcBtn.addEventListener('click', showPlayer);
+
+// ---- 복호화 / 재생 ----
 function showMsg(text, cls){ const m=$("msg"); m.className="msg "+cls; m.textContent=text; }
 function setProg(pct){ const p=$("prog"); p.style.display = pct>=0 ? "block":"none"; p.firstElementChild.style.width=(pct||0)+"%"; }
 
@@ -89,18 +187,15 @@ async function decryptAndPlay(){
   const pw = $("pw").value;
   if(!f) return showMsg("영상 파일을 선택하세요.", "err");
   if(!pw) return showMsg("비밀번호를 입력하세요.", "err");
-  if(!window.crypto || !window.crypto.subtle) return showMsg("이 브라우저는 보안 재생을 지원하지 않습니다. 최신 Chrome/Safari를 사용하세요.", "err");
+  if(!window.crypto || !window.crypto.subtle) return showMsg("이 브라우저는 보안 재생을 지원하지 않습니다.", "err");
 
   $("play").disabled = true;
   showMsg("파일 읽는 중...", "info"); setProg(10);
-
   try {
     const buf = new Uint8Array(await f.arrayBuffer());
     setProg(25);
-
-    // 헤더 파싱
     for (let i=0;i<5;i++) if (buf[i] !== MAGIC_V2[i])
-      throw new Error("지원하지 않는 파일입니다. (구버전 .venc는 PC 플레이어를 사용하세요)");
+      throw new Error("지원하지 않는 파일입니다. 최신 VideoEncryptor.exe로 다시 암호화하세요.");
 
     const salt    = buf.slice(5, 21);
     const nonce   = buf.slice(21, 33);
@@ -110,23 +205,18 @@ async function decryptAndPlay(){
     const ctLen   = Number(new DataView(buf.buffer, buf.byteOffset+51, 8).getBigUint64(0, true));
     const ct      = buf.slice(59, 59+ctLen);
 
-    // 만료 검사
     const today = new Date(); today.setHours(0,0,0,0);
     const exp = new Date(expireS+"T00:00:00");
     if (today > exp) throw new Error("재생 기간이 만료되었습니다 (만료일: "+expireS+")");
 
-    showMsg("키 생성 중... (5~15초 소요)", "info"); setProg(40);
+    showMsg("키 생성 중... (5~15초)", "info"); setProg(40);
     await new Promise(r=>setTimeout(r,30));
-
     const enc = new TextEncoder();
     const baseKey = await crypto.subtle.importKey("raw", enc.encode(pw), {name:"PBKDF2"}, false, ["deriveKey"]);
     const key = await crypto.subtle.deriveKey(
       {name:"PBKDF2", salt, iterations:ITERS, hash:"SHA-256"},
-      baseKey,
-      {name:"AES-GCM", length:256},
-      false, ["decrypt"]
+      baseKey, {name:"AES-GCM", length:256}, false, ["decrypt"]
     );
-
     showMsg("복호화 중...", "info"); setProg(70);
     const aad = new Uint8Array(enc.encode(expireS).length + extPad.length);
     aad.set(enc.encode(expireS), 0);
@@ -135,19 +225,14 @@ async function decryptAndPlay(){
     let plaintext;
     try {
       plaintext = await crypto.subtle.decrypt(
-        {name:"AES-GCM", iv:nonce, additionalData:aad},
-        key, ct
-      );
-    } catch(e) {
-      throw new Error("비밀번호가 올바르지 않거나 파일이 손상되었습니다.");
-    }
+        {name:"AES-GCM", iv:nonce, additionalData:aad}, key, ct);
+    } catch(e) { throw new Error("비밀번호가 틀렸거나 파일이 손상되었습니다."); }
 
     setProg(95);
     const mime = ext===".mp4"?"video/mp4" : ext===".mov"?"video/quicktime"
                : ext===".webm"?"video/webm" : "video/mp4";
     const blob = new Blob([plaintext], {type:mime});
     const url = URL.createObjectURL(blob);
-
     $("picker").style.display = "none";
     $("playerBox").style.display = "block";
     $("vid").src = url;
@@ -156,13 +241,11 @@ async function decryptAndPlay(){
     setProg(100); setTimeout(()=>setProg(-1), 400);
     showMsg("", "");
   } catch(e) {
-    showMsg(e.message || String(e), "err");
-    setProg(-1);
+    showMsg(e.message || String(e), "err"); setProg(-1);
   } finally {
     $("play").disabled = false;
   }
 }
-
 $("play").addEventListener("click", decryptAndPlay);
 $("back").addEventListener("click", () => {
   const v=$("vid"); v.pause(); URL.revokeObjectURL(v.src); v.src="";
@@ -171,10 +254,21 @@ $("back").addEventListener("click", () => {
 });
 $("pw").addEventListener("keydown", e => { if(e.key==="Enter") decryptAndPlay(); });
 
-// PWA: 서비스워커 등록 (오프라인 지원)
+// 서비스워커 (오프라인 + 자동 업데이트)
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
+    navigator.serviceWorker.register("sw.js").then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        nw && nw.addEventListener('statechange', () => {
+          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+            // 새 버전 활성화 시 자동 새로고침
+            nw.postMessage({type:'SKIP_WAITING'});
+            window.location.reload();
+          }
+        });
+      });
+    }).catch(()=>{});
   });
 }
 </script>
