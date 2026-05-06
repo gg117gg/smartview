@@ -1,5 +1,5 @@
 // Smart View Player - Service Worker (오프라인 지원)
-const CACHE = "svp-v4";
+const CACHE = "svp-v7";
 const ASSETS = [
   "./",
   "./SmartViewPlayer.html",
