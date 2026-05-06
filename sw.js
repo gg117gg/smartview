@@ -1,5 +1,5 @@
 // Smart View Player - Service Worker (오프라인 지원)
-const CACHE = "svp-v9";
+const CACHE = "svp-v10";
 const ASSETS = [
   "./",
   "./SmartViewPlayer.html",
@@ -7,7 +7,7 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
-  "./logo.png"
+  "./logo.png?v=9"
 ];
 
 self.addEventListener("install", e => {
